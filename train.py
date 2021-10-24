@@ -1,8 +1,9 @@
 import torch
+from torchvision import transforms,models
 from Net.UNet import UNet
 from Utils.Dataset import UnetDataset
-from torchvision import transforms,models
 from Utils.Transform import toBinary
+from Utils.Loss import UNetdice
 import os
 import torch.optim as optim
 import torch.nn as nn
@@ -14,6 +15,8 @@ class Parser(object):
             self.lr=parser['lr']
             self.cuda=parser['cuda']
             self.save_folder=parser['save_folder']
+            self.log_interval=parser['log_interval']
+            self.save_model_name=parser['save_model_name']
         def get_item(self):
             print(self.epochs) 
 
@@ -28,9 +31,20 @@ class Segmentation(object):
         self.parser_dict['epochs']=100
         self.parser_dict['lr']=0.01
         self.parser_dict['cuda']=True
+        self.parser_dict['log_interval']=3
         self.parser_dict['save_folder']='D:\\python\\BingdianNet\\result'
+        self.parser_dict['save_model_name']='my_unet.pth'
         self.parser=Parser(self.parser_dict)#将参数字典赋值给Parser类
 
+        self.batch_size=2
+        self.test_batch_size=2
+        self.epochs=1
+        self.lr=0.01
+        self.cuda=True
+        self.log_interval=3
+        self.save_folder='D:\\python\\BingdianNet\\result\\'
+        self.save_model_name='my_unet.pth'
+        
                 
         #训练集做数据增强
         transform_image = transforms.Compose([
@@ -55,29 +69,30 @@ class Segmentation(object):
         train_label_list, val_label_list = label_list[:24], label_list[24:]
 
         #训练数据读取
-        train_dataset = UnetDataset(img_list=train_img_list, label_list=train_label_list,
+        train_dataset = UnetDataset(img_root=ori_img_path,label_root=label_path,img_list=train_img_list,label_list=train_label_list,
         transform=transform_image, target_transform=transform_label)
         #验证数据读取
-        val_dataset = UnetDataset(img_list=val_img_list, label_list=val_label_list,
+        val_dataset = UnetDataset(img_root=ori_img_path,label_root=label_path,img_list=val_img_list,label_list=val_label_list,
         transform=transform_image, target_transform=transform_label)
         #加载数据
+        kwargs = {'num_workers': 0, 'pin_memory': False} if self.cuda else {}
         self.train_loader = torch.utils.data.DataLoader(train_dataset,batch_size=self.batch_size, shuffle=True, **kwargs)
 
-        val_loader = torch.utils.data.DataLoader(val_dataset,batch_size=args.test_batch_size, shuffle=False, **kwargs)
+        self.val_loader = torch.utils.data.DataLoader(val_dataset,batch_size=self.test_batch_size, shuffle=False, **kwargs)
         
         if not os.path.isdir(self.save_folder):
             os.mkdir(self.save_folder)
 
         self.device = torch.device("cuda" if self.cuda else "cpu")
         self.model=UNet(1,1)
-        self.model = self.model.to(device)
-        self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
+        self.model = self.model.to(self.device)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         self.criterion = nn.BCEWithLogitsLoss()
         self.sig = nn.Sigmoid()
-        best_dice = 0.0
+        self.best_dice = 0.0
 
 
-    def train(self):
+    def train(self,epoch):
         self.model.train()
         dice = 0
         for batch_idx, (data, target) in enumerate(self.train_loader):
@@ -87,33 +102,46 @@ class Segmentation(object):
             output = self.model(data)
             loss = self.criterion(output, target) # This loss is per image
             sig_output = self.sig(output)
-            dice += dice_coeff(sig_output, target)
+            dice += UNetdice.dice_coeff(sig_output, target)
             loss.backward()
-            optimizer.step()
-            if batch_idx % args.log_interval == 0:
+            self.optimizer.step()
+            if batch_idx % self.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, batch_idx * len(data), len(train_loader.dataset),
-                    100. * batch_idx / len(train_loader), loss.item()))
+                    epoch, batch_idx * len(data), len(self.train_loader.dataset),
+                    100. * batch_idx / len(self.train_loader), loss.item()))
 
-    dice_acc = 100. * dice / len(train_loader)
-    print('Train Dice coefficient: {:.2f}%'.format(dice_acc))
+        dice_acc = 100. * dice / len(self.train_loader)
+        print('Train Dice coefficient: {:.2f}%'.format(dice_acc))
 
+    def test(self):
+        self.model.eval()
+        test_loss = 0
+        dice = 0
+        global best_dice
+        with torch.no_grad():
+            for batch_idx, (data, target) in enumerate(self.val_loader):
+                data, target = data.to(self.device), target.to(self.device)
+                output = self.model(data)
+                test_loss += self.criterion(output, target).item()  # sum up batch loss
+                sig_output = self.sig(output)
+                dice += UNetdice.dice_coeff(sig_output, target)
+
+
+        test_loss /= len(self.val_loader.dataset)
+        dice_acc = 100. * dice / len(self.val_loader)
+
+        print('\nTest set: Batch average loss: {:.4f}, Dice Coefficient: {:.2f}%\n'.format(test_loss, dice_acc))
+
+        if dice_acc > self.best_dice:
+            torch.save(self.model.state_dict(), self.save_folder + self.save_model_name)
+            self.best_dice = dice_acc
+            print("======Saving model======")
     def main(self):
+        for epoch in range(1, self.epochs + 1):
+            Segmentation.train(self,epoch)
+            Segmentation.test(self)
 
         
+seg_UNet=Segmentation()
+seg_UNet.main()
 
-
-
-seg=Segmentation('/home')
-seg.main()
-
-# #parser类实例化
-# parser_dict={}
-# parser_dict['batch_size']=4
-# parser_dict['test_batch_size']=2
-# parser_dict['epochs']=100
-# parser_dict['lr']=0.01
-# parser_dict['no_cuda']=True
-# parser=Parser(parser_dict)
-# parser.get_item()
-# print(parser.lr)
