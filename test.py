@@ -62,5 +62,5 @@ class Segmentation(object):
             cv2.imwrite(".\\output\\UNet\\%s.jpg" % (img_tensor[1]), img)
             i = i+1
 
-seg_UNet=Segmentation()
-seg_UNet.main()
+# seg_UNet=Segmentation()
+# seg_UNet.main()

@@ -140,7 +140,7 @@ class Segmentation(object):
     def main(self):
         for epoch in range(1, self.epochs + 1):
             Segmentation.train(self,epoch)
-            Segmentation.test()
+            Segmentation.test(self)
 
 
 
@@ -419,8 +419,8 @@ class seg_UNetplus(object):
             torch.cuda.empty_cache()
 
          
-# seg_UNet=Segmentation()
-# seg_UNet.main()
-segplus=seg_UNetplus()
-segplus.main()
+seg_UNet=Segmentation()
+seg_UNet.main()
+# segplus=seg_UNetplus()
+# segplus.main()
 
