@@ -30,16 +30,17 @@ class seg_UNetplus(object):
         self.momentum=0.9
         self.weight_decay=1e-4
         self.nesterov=False
-
+        #模型参数
         self.cuda=True
         self.log_interval=3
         self.num_classes=1
         self.deep_supervision=False
         self.input_channels=1
         self.save_folder='D:\\python\\BingdianNet\\result\\unet++\\'
-        self.save_model_name='my_unet++.pth'
+        self.save_model_name='my_unet++_2.pth'
 
 
+        #模型，损失函数，优化器
         self.model = NestedUNet(self.num_classes,self.input_channels,self.deep_supervision)#第一项参数为num_classes，在本数据集中为1
         self.model = self.model.cuda()
         self.params = filter(lambda p: p.requires_grad, self.model.parameters())
@@ -78,7 +79,7 @@ class seg_UNetplus(object):
             img_root=img_root,
             label_root=label_root,
             img_list=train_img_list,
-            label_list=label_list,
+          
             transform=transform_image,
             target_transform = transform_label
             )
@@ -86,7 +87,7 @@ class seg_UNetplus(object):
             img_root=img_root,
             label_root=label_root,
             img_list=val_img_list,
-            label_list=label_list,
+            
             transform=transform_image,
             target_transform = transform_label
             )
@@ -109,7 +110,6 @@ class seg_UNetplus(object):
         if not os.path.isdir(self.save_folder):
             os.mkdir(self.save_folder)
 
-        #模型，损失函数，优化器
 
 
         
@@ -231,7 +231,7 @@ class seg_UNetplus(object):
             log['val_loss'].append(val_log['loss'])
             log['val_iou'].append(val_log['iou'])
 
-            pd.DataFrame(log).to_csv(self.save_folder + 'log.csv', index=False)
+            pd.DataFrame(log).to_csv(self.save_folder + 'log2.csv', index=False)
 
             self.trigger += 1
 

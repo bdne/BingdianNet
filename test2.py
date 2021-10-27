@@ -31,19 +31,6 @@ class toBinary(object):
         label = Image.fromarray(label)
         return label
 
-transform_image = transforms.Compose([
-    transforms.Grayscale(),
-    transforms.ToTensor(),
-    # transforms.Normalize((0.4951, 0.4956, 0.4972), (0.1734, 0.1750, 0.1736)),
-])
-
-transform_label = transforms.Compose([
-    transforms.Grayscale(),
-    toBinary(),
-    transforms.ToTensor(),
-    # transforms.Normalize((0.4938, 0.4933, 0.4880), (0.1707, 0.1704, 0.1672)),
-])
-
 device = torch.device("cuda")
 m = nn.Sigmoid()
 def test(model, device, test_loader):
@@ -52,6 +39,8 @@ def test(model, device, test_loader):
         for batch_idx, (data, name) in enumerate(test_loader):
             data = data.to(device)
             output = model(data)
+            # print(output.shape)
+            # assert 1==2
             output = m(output)
             # print(output.shape)
             pic.append((output, name))
@@ -66,7 +55,7 @@ def main():
     deep_supervision=False
     input_channels=1
     save_folder='D:\\python\\BingdianNet\\result\\unet++\\'
-    save_model_name='my_unet++.pth'
+    save_model_name='my_unet++_2.pth'
 
 
 
@@ -109,11 +98,16 @@ def main():
 
     model.load_state_dict(torch.load(save_folder+save_model_name))
     model.eval()
-    transform_image = transforms.Compose([
+    # transform_image = transforms.Compose([
+    #     transforms.Grayscale(),
+    #     transforms.ToTensor(),
+    #     # transforms.Normalize((0.4951, 0.4956, 0.4972), (0.1734, 0.1750, 0.1736)),
+    # ])
+    transform_image =transforms.Compose([
         transforms.Grayscale(),
         transforms.ToTensor(),
         # transforms.Normalize((0.4951, 0.4956, 0.4972), (0.1734, 0.1750, 0.1736)),
-    ])
+        ])
 
     test_dataset = UnetTestDataset(img_list=test_img_list, transform=transform_image)
 
