@@ -17,14 +17,12 @@ class UnetDataset(Dataset):
 
     def __getitem__(self, index):
         image = Image.open(os.path.join(self.img_root, self.img_list[index]))
-        print(image.mode)
-   
-        print(np.array(image).shape)
-        assert 1==2
+        
        
         if self.transform is not None:
             image = self.transform(image)
-            #print(image.shape)
+
+       
         if self.label_list is not None:
             label = Image.open(os.path.join(self.label_root, self.label_list[index]))
             if self.target_transform is not None:

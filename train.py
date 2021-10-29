@@ -26,8 +26,8 @@ class Segmentation(object):
 
         #实例化参数
         self.parser_dict={}#定义一个参数字典
-        self.parser_dict['batch_size']=4
-        self.parser_dict['test_batch_size']=2
+        self.parser_dict['batch_size']=2
+        self.parser_dict['test_batch_size']=1
         self.parser_dict['epochs']=100
         self.parser_dict['lr']=0.01
         self.parser_dict['cuda']=True
@@ -36,7 +36,7 @@ class Segmentation(object):
         self.parser_dict['save_model_name']='my_unet.pth'
         self.parser=Parser(self.parser_dict)#将参数字典赋值给Parser类
 
-        self.batch_size=2
+        self.batch_size=1
         self.test_batch_size=2
         self.epochs=1
         self.lr=0.01
