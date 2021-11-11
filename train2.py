@@ -6,26 +6,37 @@ import torch.optim as optim
 from Net.UNet import UNet
 from Utils.Dataset import UNet_Data
 from Utils.Eval import UNetdice
+
+from torch.optim import lr_scheduler
+from Utils.Loss import LossFunction
+
 class Segmentation(object):
     def __init__(self):
+        #图像尺寸
+        self.width = 512
+        self.height = 512
         #训练参数
         self.batch_size=1
-        self.test_batch_size=2
+        self.test_batch_size=1
         self.epochs=100
-        self.lr=0.01
-        self.cuda=True
+        self.lr=0.001
+        self.min_lr=1e-4
         self.num_classes=2
-        self.log_interval=3
+        self.log_interval=12
         self.save_folder='D:\\python\\BingdianNet\\result\\'
         self.save_model_name='my_unet_classification.pth'
         #定义模型
+        self.cuda=True
         self.device = torch.device("cuda" if self.cuda else "cpu")
         self.model=UNet(1,2)#n_classes=2 前景概率和背景概率
         self.model = self.model.to(self.device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        self.scheduler=lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs, eta_min=self.min_lr)
         self.criterion = nn.CrossEntropyLoss()
+        self.loss = LossFunction()
         #评价指标初始化
         self.best_dice = 0.0
+
 
         #创建模型存储文件夹
         if not os.path.isdir(self.save_folder):
@@ -40,9 +51,9 @@ class Segmentation(object):
         train_label_list, val_label_list = label_list[:24], label_list[24:]
 
         #训练数据读取
-        train_dataset = UNet_Data(img_root=ori_img_path,label_root=label_path,img_list=train_img_list,label_list=train_label_list)
+        train_dataset = UNet_Data(img_root=ori_img_path,label_root=label_path,img_list=train_img_list,label_list=train_label_list,mode='train')
         #验证数据读取
-        val_dataset = UNet_Data(img_root=ori_img_path,label_root=label_path,img_list=val_img_list,label_list=val_label_list)
+        val_dataset = UNet_Data(img_root=ori_img_path,label_root=label_path,img_list=val_img_list,label_list=val_label_list,mode='val')
         
         #加载数据
         kwargs = {'num_workers': 0, 'pin_memory': False} if self.cuda else {}
@@ -51,33 +62,56 @@ class Segmentation(object):
 
     def train(self,epoch):
         self.model.train()
-        dice = 0
+
         for batch_idx, sample in enumerate(self.train_loader):
-            # print("data shape:{}".format(data.dtype))
             # print(batch_idx)
             self.optimizer.zero_grad()
             img = sample['image'].cuda()
             target = sample['label'].cuda().long()
-            print('target:',target.shape)
             output = self.model(img)
-            labels = torch.full(size=(1,self.num_classes,512,512), fill_value=0).cuda()
-            labels.scatter_(dim=1, index=target, value=1)#one-hot编码
-            log_prob = F.log_softmax(output, dim=1)#logsoftmax
-            loss = -torch.sum(log_prob * labels) #交叉熵
-            print('labels',labels.shape)
-            print('output',output.shape)
-            output_argmax=torch.argmax(output, dim=1, keepdim=False)#预测值
-            print(output_argmax.shape)
-            # dice += UNetdice.dice_coeff(m(output), labels)
-            # print(dice)
+            loss = self.loss(output,target.squeeze(dim=1))
+            # loss = self.loss(output,target)#使用 one-hot的损失函数
             loss.backward()
             self.optimizer.step()
-        #     if batch_idx % self.log_interval == 0:
-        #         print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-        #             epoch, batch_idx * len(img), len(self.train_loader.dataset),
-        #             100. * batch_idx / len(self.train_loader), loss.item()))
-        # print('loader',len(self.train_loader))
-        # dice_acc = 100. * dice / len(self.train_loader)
-        # print('Train Dice coefficient: {:.2f}%'.format(dice_acc))
+        
+            if batch_idx % self.log_interval == 0:
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epoch, batch_idx * len(img), len(self.train_loader.dataset),
+                    100. * batch_idx / len(self.train_loader), loss.item()))
+
+    def test(self):
+
+        self.model.eval()
+        test_loss = 0
+        dice = 0
+        print('---------------------------------开始测试----------------------------')
+        with torch.no_grad():
+            for batch_idx, sample in enumerate(self.val_loader):
+                img = sample['image'].cuda()
+                target = sample['label'].cuda().long()
+                output = self.model(img)
+                test_loss = self.criterion(output,target.squeeze(dim=1))
+                output_argmax = torch.argmax(output, dim=1, keepdim=True)#预测值，keepdim能够保持当前维度
+                dice += UNetdice.dice_coeff(target, output_argmax)
+
+        test_loss /= len(self.val_loader.dataset)
+        dice_acc = 100. * dice / len(self.val_loader)
+
+        print('\nTest set: Batch average loss: {:.4f}, Dice Coefficient: {:.2f}%\n'.format(test_loss, dice_acc))
+
+        if dice_acc > self.best_dice:
+            torch.save(self.model.state_dict(), self.save_folder + 'UNet\\'+self.save_model_name)
+            self.best_dice = dice_acc
+            print("======Saving model======")
+
+
+
+    def main(self):
+        for epoch in range(1, self.epochs + 1):
+            self.scheduler.step()
+            # print("学习率:",self.optimizer.param_groups[0]['lr'])
+            Segmentation.train(self,epoch)
+            Segmentation.test(self)
+
 seg=Segmentation()
-seg.train(1)
+seg.main()

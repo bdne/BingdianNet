@@ -15,21 +15,12 @@ from collections import OrderedDict
 import torch.backends.cudnn as cudnn
 import pandas as pd
 from torch.optim import lr_scheduler
-from Utils.Transform import toBinary
+
 from PIL import Image
 import numpy as np
 from torch.utils.data.dataset import Dataset
 import cv2
 
-
-
-class toBinary(object):
-    def __call__(self, label):
-        label = np.array(label)
-        # print(image)
-        label = label * (label > 127)
-        label = Image.fromarray(label)
-        return label
 
 device = torch.device("cuda")
 m = nn.Sigmoid()
@@ -55,16 +46,13 @@ def main():
     deep_supervision=False
     input_channels=1
     save_folder='D:\\python\\BingdianNet\\result\\unet++\\'
-    save_model_name='my_unet++_2.pth'
-
-
+    save_model_name='my_unet++_3.pth'
 
     # create model
 
     model = NestedUNet(num_classes,input_channels,deep_supervision)#第一项参数为num_classes，在本数据集中为1
     model = model.cuda()
     cudnn.benchmark = True
-
 
 
     # Data loading code
@@ -98,11 +86,7 @@ def main():
 
     model.load_state_dict(torch.load(save_folder+save_model_name))
     model.eval()
-    # transform_image = transforms.Compose([
-    #     transforms.Grayscale(),
-    #     transforms.ToTensor(),
-    #     # transforms.Normalize((0.4951, 0.4956, 0.4972), (0.1734, 0.1750, 0.1736)),
-    # ])
+
     transform_image =transforms.Compose([
         transforms.Grayscale(),
         transforms.ToTensor(),
@@ -112,14 +96,7 @@ def main():
     test_dataset = UnetTestDataset(img_list=test_img_list, transform=transform_image)
 
 
-    # val_dataset = Dataset(
-    #     img_ids=val_img_ids,
-    #     img_dir=os.path.join('inputs', config['dataset'], 'images'),
-    #     mask_dir=os.path.join('inputs', config['dataset'], 'masks'),
-    #     img_ext=config['img_ext'],
-    #     mask_ext=config['mask_ext'],
-    #     num_classes=config['num_classes'],
-    #     transform=val_transform)
+
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
         # batch_size=config['batch_size'],
@@ -128,34 +105,7 @@ def main():
         num_workers=0,
         drop_last=False)
 
-    # avg_meter = AverageMeter()
-    #
-    # for c in range(config['num_classes']):
-    #     os.makedirs(os.path.join('outputs', config['name'], str(c)), exist_ok=True)
-    # with torch.no_grad():
-    #     for input, target in tqdm(test_loader, total=len(test_loader)):
-    #         input = input.cuda()
-    #         target = target.cuda()
-    #
-    #         # compute output
-    #         if config['deep_supervision']:
-    #             output = model(input)[-1]
-    #         else:
-    #             output = model(input)
-    #
-    #         iou = iou_score(output, target)
-    #         avg_meter.update(iou, input.size(0))
-    #
-    #         output = torch.sigmoid(output).cpu().numpy()
-    #
-    #         for i in range(len(output)):
-    #             for c in range(config['num_classes']):
-    #                 cv2.imwrite(os.path.join('outputs', config['name'], str(c), meta['img_id'][i] + '.jpg'),
-    #                             (output[i, c] * 255).astype('uint8'))
-    #
-    # print('IoU: %.4f' % avg_meter.avg)
-    #
-    # torch.cuda.empty_cache()
+
     test(model, device, test_loader)
     i=0
     for img_tensor in pic:
@@ -166,8 +116,6 @@ def main():
         img = img * 255
         # print(img.shape)
         # img = Image.fromarray(img)
-
-   
         cv2.imwrite(".\\output\\UNet++\\%s.jpg"% (img_tensor[1]), img)
         i = i+1
         print("over")

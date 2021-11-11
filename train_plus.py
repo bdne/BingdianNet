@@ -34,10 +34,10 @@ class seg_UNetplus(object):
         self.cuda=True
         self.log_interval=3
         self.num_classes=1
-        self.deep_supervision=False
+        self.deep_supervision=True
         self.input_channels=1
         self.save_folder='D:\\python\\BingdianNet\\result\\unet++\\'
-        self.save_model_name='my_unet++_3.pth'
+        self.save_model_name='my_unet++_deepsupervision.pth'
 
 
         #模型，损失函数，优化器
@@ -46,8 +46,9 @@ class seg_UNetplus(object):
         self.params = filter(lambda p: p.requires_grad, self.model.parameters())
 
         self.criterion= nn.BCEWithLogitsLoss().cuda()
-        self.optimizer= optim.SGD(self.params, lr=self.lr, momentum=self.momentum,
-                              nesterov=self.nesterov, weight_decay=self.weight_decay)
+        # self.optimizer= optim.SGD(self.params, lr=self.lr, momentum=self.momentum,
+        #                       nesterov=self.nesterov, weight_decay=self.weight_decay)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         self.scheduler=lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.epochs, eta_min=self.min_lr)
         self.early_stopping=-1
 
@@ -78,16 +79,14 @@ class seg_UNetplus(object):
         train_dataset = UNetplusDataset(
             img_root=img_root,
             label_root=label_root,
-            img_list=train_img_list,
-          
-            transform=transform_image,
+            img_list=train_img_list,  
+            transform=transform_image                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             ,
             target_transform = transform_label
             )
         val_dataset = UNetplusDataset(
             img_root=img_root,
             label_root=label_root,
             img_list=val_img_list,
-            
             transform=transform_image,
             target_transform = transform_label
             )
@@ -95,6 +94,7 @@ class seg_UNetplus(object):
        
 
         kwargs = {'num_workers': 0, 'pin_memory': False} if self.cuda else {}#num_worker用来加载batch到内存中
+        
         self.train_loader = torch.utils.data.DataLoader(
                     train_dataset,
                     batch_size=self.batch_size,
@@ -154,6 +154,8 @@ class seg_UNetplus(object):
 
         return OrderedDict([('loss', avg_meters['loss'].avg),
                             ('iou', avg_meters['iou'].avg)])
+
+                            
     def validate(self):
         avg_meters = {'loss': AverageMeter(),
                     'iou': AverageMeter()}
@@ -210,22 +212,18 @@ class seg_UNetplus(object):
 
         for epoch in range(self.epochs):
             print('Epoch [%d/%d]' % (epoch, self.epochs))
-
             # train for one epoch
             train_log = seg_UNetplus.train(self)
             # evaluate on validation set
             val_log = seg_UNetplus.validate(self)
-
-      
+            
             self.scheduler.step()
- 
-    
 
             print('loss %.4f - iou %.4f - val_loss %.4f - val_iou %.4f'
                 % (train_log['loss'], train_log['iou'], val_log['loss'], val_log['iou']))
 
-            log['epoch'].append(self.epochs)
-            log['lr'].append(self.lr)
+            log['epoch'].append(epoch)
+            log['lr'].append(self.optimizer.param_groups[0]['lr'])
             log['loss'].append(train_log['loss'])
             log['iou'].append(train_log['iou'])
             log['val_loss'].append(val_log['loss'])
@@ -234,7 +232,9 @@ class seg_UNetplus(object):
             pd.DataFrame(log).to_csv(self.save_folder + 'log3.csv', index=False)
 
             self.trigger += 1
+
             print("学习率:",self.optimizer.param_groups[0]['lr'])
+
             if val_log['iou'] > self.best_iou:
                 torch.save(self.model.state_dict(), self.save_folder + self.save_model_name)
                 self.best_iou = val_log['iou']
