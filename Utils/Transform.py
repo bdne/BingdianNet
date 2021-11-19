@@ -56,6 +56,7 @@ class Transform(object):
         img = tensor(img)
         return img
 # ''''''''''''''''''''''''''''''''''''''''''''
+# def ToNumpy(self)
 
     def ToTensor(self,sample):
         img = sample['image']

@@ -13,16 +13,10 @@ class UNetdice(object):#Dice系数
         intersection = (target * output_argmax).sum()      #预测分割图与GT分割图点乘，并将元素相乘的结果元素相加求和 
         return (2. * intersection + smooth) / (target.sum() + output_argmax.sum() + smooth)
 
-def iou_score(output, target):#计算交并比
+def iou_score(target, output):#计算交并比
     smooth = 1e-5
 
-    if torch.is_tensor(output):
-        output = torch.sigmoid(output).data.cpu().numpy()
-    if torch.is_tensor(target):
-        target = target.data.cpu().numpy()
-    output_ = output > 0.5
-    target_ = target > 0.5
-    intersection = (output_ & target_).sum()
-    union = (output_ | target_).sum()
+    intersection = (output * target).sum()
+    union = (output | target).sum()
 
     return (intersection + smooth) / (union + smooth)

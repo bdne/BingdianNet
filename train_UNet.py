@@ -24,7 +24,7 @@ class Segmentation(object):
         self.num_classes=2
         self.log_interval=12
         self.save_folder='D:\\python\\BingdianNet\\result\\'
-        self.save_model_name='my_unet_classification.pth'
+        self.save_model_name='my_unet_classification2.pth'
         #定义模型
         self.cuda=True
         self.device = torch.device("cuda" if self.cuda else "cpu")
@@ -69,8 +69,8 @@ class Segmentation(object):
             img = sample['image'].cuda()
             target = sample['label'].cuda().long()
             output = self.model(img)
-            loss = self.loss(output,target.squeeze(dim=1))
-            # loss = self.loss(output,target)#使用 one-hot的损失函数
+            #loss = self.loss(output,target.squeeze(dim=1))
+            loss = self.loss(output,target)#使用 one-hot的损失函数
             loss.backward()
             self.optimizer.step()
         
@@ -103,7 +103,6 @@ class Segmentation(object):
             torch.save(self.model.state_dict(), self.save_folder + 'UNet\\'+self.save_model_name)
             self.best_dice = dice_acc
             print("======Saving model======")
-
 
 
     def main(self):
