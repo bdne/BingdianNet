@@ -28,12 +28,12 @@ class Transform(object):
             assert 1==2
 #'''''''''''''''''''''''''''''''''''''''''''
     def _train_(self,sample):
-        sample = self.grayscale(sample)
-        sample = self._random_rotate_(sample)
-        sample = self._random_flip_(sample)
-        sample = self.toBinary(sample)
-        sample = self.ToTensor(sample)
-        # sample = self.add_dimension(sample)
+        # sample = self.grayscale(sample)
+        # sample = self._random_rotate_(sample)
+        # sample = self._random_flip_(sample)
+        # sample = self.toBinary(sample)
+        # sample = self.ToTensor(sample)
+
         return sample
 
     def _val_(self,sample):
@@ -45,6 +45,7 @@ class Transform(object):
          img = self.test_grayscale(img)
          img = self.test_ToTensor(img)
          return img
+
 # '''''''''''''''''''''''''''''''''''''''''''
     def test_grayscale(self,img):
         gray = transforms.Grayscale()
@@ -106,6 +107,57 @@ class Transform(object):
 
 
 
+import SimpleITK as sitk
 
 
+class NiiTransform(object):
+    def __init__(self,mode):
+        if mode == 'train':
+            self.mode = 'train'
+        elif mode == 'test':
+            self.mode = 'test'
+        elif mode == 'val':
+            self.mode = 'val'
+        else:
+            print('训练模式错误')
+            assert 1==2
+    def __call__(self,sample):
+        if self.mode == 'train':
+            return self._train_(sample)
+        elif self.mode == 'test':
+            return self._test_(sample)
+        elif self.mode == 'val':
+            return self._val_(sample)
+        else:
+            print('训练模式错误')
+            assert 1==2
+#''''''''''''''''''''''''''''''''''''''
+    def _train_(self,sample):
+        sample = self.ToNumpy(sample)
+        sample = self.ToTensor(sample)
+        return sample
 
+    def _val_(self,sample):
+        sample = self.ToNumpy(sample)
+        sample = self.ToTensor(sample)
+        return sample
+
+    def _test_(self,img):
+        assert 1==2
+        img = self.test_grayscale(img)
+        img = self.test_ToTensor(img)
+        return img
+#''''''''''''''''''''''''''''''''''''''
+    def ToNumpy(self,sample):
+        img = sample['image']
+        label = sample['label']
+        img = sitk.GetArrayFromImage(img)
+        label = sitk.GetArrayFromImage(label)
+        return {"image":img,"label":label}
+    def ToTensor(self,sample):
+        img = sample['image']
+        label = sample['label']
+        img = torch.FloatTensor(img).unsqueeze(0)
+        label = torch.FloatTensor(label)
+        return {"image":img,"label":label}
+        
