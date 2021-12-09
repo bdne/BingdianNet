@@ -28,11 +28,11 @@ class Transform(object):
             assert 1==2
 #'''''''''''''''''''''''''''''''''''''''''''
     def _train_(self,sample):
-        # sample = self.grayscale(sample)
+        sample = self.grayscale(sample)
         # sample = self._random_rotate_(sample)
         # sample = self._random_flip_(sample)
         # sample = self.toBinary(sample)
-        # sample = self.ToTensor(sample)
+        sample = self.ToTensor(sample)
 
         return sample
 
@@ -53,19 +53,18 @@ class Transform(object):
         return img
 
     def test_ToTensor(self,img):
-        tensor = transforms.ToTensor()
-        img = tensor(img)
-        return img
+            img = torch.FloatTensor(np.array(img) / 255).unsqueeze(0)
+            return img
+
 # ''''''''''''''''''''''''''''''''''''''''''''
-# def ToNumpy(self)
 
     def ToTensor(self,sample):
         img = sample['image']
         label = sample['label']
-        tensor = transforms.ToTensor()
-        img = tensor(img)
-        label = tensor(label)
-        return {"image":img,"label":label}   
+        img = torch.FloatTensor(np.array(img)/255).unsqueeze(0)
+        #label = torch.FloatTensor(np.array(label)).unsqueeze(0)#one-hot形式的交叉熵损失用这个变换
+        label = torch.FloatTensor(np.array(label))
+        return {"image":img,"label":label}
 
     def toBinary(self,sample):#对灰度图进行二值化处理
         img = sample['image']

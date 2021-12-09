@@ -1,1 +1,1 @@
-以UNet和UNet++搭建的pytorch深度学习框架
+pytorch深度学习框架

@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 
 class UNetdice(object):#Dice系数
-    def dice_coeff(target,output_argmax):
+    def dice_coeff(output_argmax,target):
         #pred和target是onehot编码，index是标签类别索引矩阵，output_argmax是预测类别索引矩阵
         smooth = 1e-5
         # print("pred:",pred.shape)

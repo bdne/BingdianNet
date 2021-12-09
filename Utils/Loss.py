@@ -6,8 +6,8 @@ device = torch.device("cuda")
 class LossFunction(nn.Module):
     def __init__(self):
         super(LossFunction,self).__init__()
-        #self.cla_loss = Cla_CrossEntropyLoss()
-        self.cla_loss = CrossEntropyLoss_onehot()
+        self.cla_loss = Cla_CrossEntropyLoss()
+        # self.cla_loss = CrossEntropyLoss_onehot()
     def forward(self,input_cla,target_cla):
         loss = self.cla_loss(input_cla,target_cla)
         return loss
